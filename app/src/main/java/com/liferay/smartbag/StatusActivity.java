@@ -4,15 +4,16 @@ import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.widget.TextView;
 
+import com.estimote.coresdk.common.requirements.SystemRequirementsChecker;
 import com.estimote.coresdk.observation.region.beacon.BeaconRegion;
 import com.estimote.coresdk.recognition.packets.Beacon;
 import com.estimote.coresdk.service.BeaconManager;
-import com.estimote.coresdk.service.BeaconManager.BeaconMonitoringListener;
 import com.wedeploy.android.WeDeploy;
 
 import org.json.JSONObject;
 
 import java.util.List;
+import java.util.UUID;
 
 import io.reactivex.android.schedulers.AndroidSchedulers;
 import io.reactivex.schedulers.Schedulers;
@@ -20,6 +21,7 @@ import io.reactivex.schedulers.Schedulers;
 public class StatusActivity extends AppCompatActivity {
 
 	private BeaconManager beaconManager;
+	private BeaconRegion region;
 	private String _status;
 
 	@Override
@@ -35,35 +37,33 @@ public class StatusActivity extends AppCompatActivity {
 			textView.setText(_status);
 		}
 
-		detectBeacon();
+		beaconManager = new BeaconManager(this);
+		region = new BeaconRegion(
+			"bag", UUID.fromString("B9407F30-F5F8-466E-AFF9-25556B57FE6D"),
+			21121, 1);
+
+		beaconManager.setRangingListener(new BeaconManager.BeaconRangingListener() {
+			@Override
+			public void onBeaconsDiscovered(BeaconRegion region, List<Beacon> list) {
+				sendStatus();
+				System.out.println("MANDOU STATUS " + _status);
+			}
+		});
 	}
 
 	@Override
-	protected void onDestroy() {
-		super.onDestroy();
-		beaconManager.disconnect();
+	protected void onResume() {
+		super.onResume();
+		SystemRequirementsChecker.checkWithDefaultDialogs(this);
+
+		beaconManager.connect(() -> beaconManager.startRanging(region));
 	}
 
-	private void detectBeacon() {
-		beaconManager = new BeaconManager(getApplicationContext());
-		beaconManager.setBackgroundScanPeriod(5000, 5000);
-		beaconManager.connect(() -> beaconManager.startMonitoring(
-			new BeaconRegion("bag", null, null, null)));
+	@Override
+	protected void onPause() {
+		beaconManager.stopRanging(region);
 
-		beaconManager.setMonitoringListener(new BeaconMonitoringListener() {
-
-		    @Override
-		    public void onEnteredRegion(
-	            BeaconRegion region, List<Beacon> beacons) {
-
-		        sendStatus();
-		    }
-
-		    @Override
-		    public void onExitedRegion(BeaconRegion region) {
-		        System.out.println("saiu");
-		    }
-		});
+		super.onPause();
 	}
 
 	private void sendStatus() {
@@ -81,9 +81,11 @@ public class StatusActivity extends AppCompatActivity {
 				.observeOn(AndroidSchedulers.mainThread())
 				.subscribe(
 					response -> {
+						System.out.println("MANDOU PRO WEDEPLOY");
 						System.out.println(response.succeeded());
 					},
 					throwable -> {
+						System.out.println("NAO CONSEGUIR MANDAR PRO WEDEPLOY");
 						System.out.println(throwable.getMessage());
 					}
 				);

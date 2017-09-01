@@ -7,8 +7,6 @@ import android.widget.Button;
 import android.widget.RadioButton;
 import android.widget.RadioGroup;
 
-import com.estimote.coresdk.common.requirements.SystemRequirementsChecker;
-
 public class MainActivity extends AppCompatActivity {
 
 	@Override
@@ -32,9 +30,4 @@ public class MainActivity extends AppCompatActivity {
 
 	}
 
-	@Override
-	protected void onResume() {
-		super.onResume();
-		SystemRequirementsChecker.checkWithDefaultDialogs(this);
-	}
 }
